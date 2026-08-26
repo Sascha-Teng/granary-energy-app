@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
@@ -28,10 +28,15 @@
 
       <nav class="nav-list">
         <button class="nav-item active" data-nav="dashboard"><span>◫</span>总览</button>
-        <button class="nav-item" data-nav="parameters"><span>⚙</span>参数设置</button>
-        <button class="nav-item" data-nav="thermal"><span>⌁</span>热工分析</button>
-        <button class="nav-item" data-nav="energy"><span>ϟ</span>能耗分析</button>
-        <button class="nav-item" data-nav="economics"><span>¥</span>经济性分析</button>
+        <button class="nav-item" data-nav="parameters"><span>⚙</span>屋面参数设置</button>
+        <div class="nav-group">
+          <button class="nav-group-toggle" id="analysisToggle" type="button" aria-expanded="false" aria-controls="analysisMenu"><span>▦</span>结果分析<i aria-hidden="true">⌄</i></button>
+          <div class="nav-submenu" id="analysisMenu">
+            <button class="nav-item sub-item" data-nav="thermal"><span>⌁</span>热工分析</button>
+            <button class="nav-item sub-item" data-nav="energy"><span>ϟ</span>能耗分析</button>
+            <button class="nav-item sub-item" data-nav="economics"><span>¥</span>经济性分析</button>
+          </div>
+        </div>
         <button class="nav-item" data-nav="report"><span>⇩</span>报告与导出</button>
       </nav>
 
@@ -59,12 +64,12 @@
         <section class="page active" id="page-dashboard" data-page="dashboard">
           <div class="hero-card">
             <div class="hero-copy">
-              <span class="pill">智能热工评估 · v1.0 PWA</span>
+              <span class="pill">全系统能耗评估 · v1.1 PWA</span>
               <h2>平房仓屋面节能方案<br><em>一站式虚拟评估</em></h2>
-              <p>基于简化动态热阻—热容模型，对原屋面、双层通风屋面和双层＋嵌管三种工况进行24小时对比。</p>
+              <p>基于简化动态热阻—热容模型，对原屋面、双层通风屋面和双层＋嵌管三种工况开展24小时传热、能耗与经济性对比分析。</p>
               <div class="hero-actions">
-                <button class="btn light" data-nav="parameters">调整模型参数</button>
-                <button class="btn outline-light" data-nav="thermal">查看分析结果</button>
+                <button class="btn light" data-nav="parameters">调整屋面参数</button>
+                <button class="btn outline-light" data-nav="thermal">查看结果分析</button>
               </div>
             </div>
             <div class="hero-visual" aria-hidden="true">
@@ -88,7 +93,7 @@
 
           <div class="grid two-one">
             <article class="panel chart-panel">
-              <div class="panel-head"><div><span class="section-kicker">THERMAL TREND</span><h3>仓顶温度趋势</h3></div><button class="link-btn" data-nav="thermal">查看详情 →</button></div>
+              <div class="panel-head"><div><span class="section-kicker">THERMAL TREND</span><h3>仓顶温度趋势</h3></div><div class="panel-tools"><div class="legend"><i class="dashed"></i>室外气温<i class="red"></i>原屋面<i class="blue"></i>双层<i class="green"></i>嵌管</div><button class="link-btn" data-nav="thermal">查看详情 →</button></div></div>
               <div class="chart-wrap large"><canvas id="overviewTempChart" role="img" aria-label="仓顶温度趋势图"></canvas></div>
             </article>
             <article class="panel recommendation">
@@ -97,7 +102,7 @@
               <h4 id="recommendTitle">正在生成结论</h4>
               <p id="recommendText">模型计算完成后，这里会展示推荐工况与关键依据。</p>
               <div class="mini-metrics">
-                <div><small>净节能率</small><strong id="recommendRate">--</strong></div>
+                <div><small>全系统节电率</small><strong id="recommendRate">--</strong></div>
                 <div><small>回收期</small><strong id="recommendPayback">--</strong></div>
               </div>
             </article>
@@ -105,7 +110,7 @@
         </section>
 
         <section class="page" id="page-parameters" data-page="parameters">
-          <div class="page-intro"><div><span class="section-kicker">MODEL INPUT</span><h2>模型参数设置</h2><p>修改参数后点击“开始计算”，所有图表、指标和经济性结论会同步更新。</p></div><div class="intro-badge">当前地区：郑州</div></div>
+          <div class="page-intro"><div><span class="section-kicker">MODEL INPUT</span><h2>屋面参数设置</h2><p>调整屋面、运行控制和经济性参数后点击“开始计算”，所有结果会同步更新。</p></div><div class="intro-badge">当前地区：郑州</div></div>
           <form id="parameterForm" novalidate>
             <div class="parameter-layout">
               <article class="panel form-card"><div class="panel-head"><div><span class="card-index">01</span><h3>基础热工参数</h3></div><span class="subtle">6项主要输入</span></div><div class="field-grid" id="basicFields"></div></article>
@@ -119,20 +124,21 @@
         <section class="page" id="page-thermal" data-page="thermal">
           <div class="page-intro"><div><span class="section-kicker">THERMAL ANALYSIS</span><h2>热工性能分析</h2><p>对比三种工况的仓顶温度和24小时累计传入热量。</p></div><span class="intro-badge">1小时计算步长</span></div>
           <div class="grid half">
-            <article class="panel chart-panel"><div class="panel-head"><div><h3>仓顶内表面温度</h3><p>郑州典型夏季高温日</p></div><div class="legend"><i class="red"></i>原屋面<i class="blue"></i>双层<i class="green"></i>嵌管</div></div><div class="chart-wrap"><canvas id="temperatureChart"></canvas></div></article>
+            <article class="panel chart-panel"><div class="panel-head"><div><h3>仓顶内表面温度</h3><p>灰色虚线表示室外气温</p></div><div class="legend"><i class="dashed"></i>室外气温<i class="red"></i>原屋面<i class="blue"></i>双层<i class="green"></i>嵌管</div></div><div class="chart-wrap"><canvas id="temperatureChart"></canvas></div></article>
             <article class="panel chart-panel"><div class="panel-head"><div><h3>累计传入热量</h3><p>24h累计值，单位 kWh</p></div></div><div class="chart-wrap"><canvas id="heatChart"></canvas></div></article>
           </div>
           <article class="panel table-panel"><div class="panel-head"><div><h3>热工指标汇总</h3><p>峰值温度、降温幅度及传入热量</p></div></div><div class="table-scroll"><table><thead><tr><th>工况</th><th>峰值温度</th><th>相对原屋面降温</th><th>累计传入热量</th><th>方案定位</th></tr></thead><tbody id="thermalTable"></tbody></table></div></article>
         </section>
 
         <section class="page" id="page-energy" data-page="energy">
-          <div class="page-intro"><div><span class="section-kicker">ENERGY ANALYSIS</span><h2>能耗与运行费用</h2><p>采用原软件相同口径，对屋面设备及仓内制冷耗电进行对比。</p></div><span class="intro-badge">全系统运行口径</span></div>
+          <div class="page-intro"><div><span class="section-kicker">ENERGY ANALYSIS</span><h2>能耗与运行费用</h2><p>对三种工况的仓内制冷、风机、水泵和嵌管冷源耗电进行全系统对比。</p></div><span class="intro-badge">全系统实际耗电口径</span></div>
           <div class="grid half">
-            <article class="panel chart-panel"><div class="panel-head"><div><h3>设备耗电构成</h3><p>风机、水泵、冷源及仓内制冷</p></div></div><div class="chart-wrap"><canvas id="deviceEnergyChart"></canvas></div></article>
-            <article class="panel chart-panel"><div class="panel-head"><div><h3>各工况日总耗电</h3><p>屋面设备＋仓内制冷</p></div></div><div class="chart-wrap"><canvas id="totalEnergyChart"></canvas></div></article>
+            <article class="panel chart-panel"><div class="panel-head"><div><h3>全系统耗电构成</h3><p>三种工况均计入仓内制冷耗电</p></div></div><div class="chart-wrap"><canvas id="deviceEnergyChart"></canvas></div></article>
+            <article class="panel chart-panel"><div class="panel-head"><div><h3>各工况日总耗电</h3><p>仓内制冷＋屋面设备</p></div></div><div class="chart-wrap"><canvas id="totalEnergyChart"></canvas></div></article>
           </div>
           <div class="kpi-grid compact" id="energyCards"></div>
-          <article class="panel note-panel"><span class="note-icon">i</span><div><h4>计算口径说明</h4><p>Web版保持Python原版公式：净节能率按照屋面侧减少热量扣除屋面设备耗电计算；日总耗电按照仓内制冷与屋面设备用电之和计算。</p></div></article>
+          <article class="panel table-panel energy-breakdown"><div class="panel-head"><div><h3>耗电构成明细</h3><p>分项数据用于核对柱状图，单位均为 kWh/日</p></div></div><div class="table-scroll"><table><thead><tr><th>工况</th><th>仓内制冷</th><th>风机</th><th>水泵</th><th>嵌管冷源</th><th>日总耗电</th><th>相对原屋面</th></tr></thead><tbody id="energyBreakdownTable"></tbody></table></div></article>
+          <article class="panel note-panel"><span class="note-icon">i</span><div><h4>计算口径说明</h4><p>三种工况的仓内制冷耗电均按“屋面累计传入热量÷仓内制冷COP”估算；日总耗电为仓内制冷与屋面设备之和；节电率按各方案日总耗电相对原屋面计算。当前简化模型尚未计入墙体、渗透、设备和粮食呼吸等完整冷负荷。</p></div></article>
         </section>
 
         <section class="page" id="page-economics" data-page="economics">
@@ -159,12 +165,15 @@
     </div>
   </div>
 
+  <div class="mobile-analysis-menu" id="mobileAnalysisMenu" hidden>
+    <button data-nav="thermal"><span>⌁</span>热工分析</button>
+    <button data-nav="energy"><span>ϟ</span>能耗分析</button>
+    <button data-nav="economics"><span>¥</span>经济性分析</button>
+  </div>
   <nav class="mobile-nav" aria-label="手机导航">
     <button class="active" data-nav="dashboard"><span>◫</span>总览</button>
     <button data-nav="parameters"><span>⚙</span>参数</button>
-    <button data-nav="thermal"><span>⌁</span>热工</button>
-    <button data-nav="energy"><span>ϟ</span>能耗</button>
-    <button data-nav="economics"><span>¥</span>经济</button>
+    <button id="mobileAnalysisToggle" type="button" aria-expanded="false" aria-controls="mobileAnalysisMenu"><span>▦</span>结果</button>
     <button data-nav="report"><span>⇩</span>报告</button>
   </nav>
 
@@ -172,5 +181,4 @@
   <noscript>此应用需要启用 JavaScript 才能运行模型。</noscript>
 </body>
 </html>
-
 

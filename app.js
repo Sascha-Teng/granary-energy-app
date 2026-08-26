@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   "use strict";
 
   const M = window.GranaryModel;
@@ -31,12 +31,13 @@
 
   const PAGE_TITLES = {
     dashboard: "项目总览",
-    parameters: "参数设置",
+    parameters: "屋面参数设置",
     thermal: "热工分析",
     energy: "能耗分析",
     economics: "经济性分析",
     report: "报告与导出",
   };
+  const RESULT_PAGES = new Set(["thermal", "energy", "economics"]);
 
   let params = { ...M.DEFAULT_PARAMS };
   let result = null;
@@ -53,6 +54,8 @@
     maximumFractionDigits: digits,
   });
   const money = (value, digits = 0) => `${fmt(value, digits)} 元`;
+  const energyRateLabel = value => value >= 0
+    ? `节电 ${fmt(value)}%` : `耗电增加 ${fmt(Math.abs(value))}%`;
 
   function createFields(containerId, fields) {
     const container = document.getElementById(containerId);
@@ -143,12 +146,13 @@
     $("#kpiFee").textContent = money(result.fee_double, 1);
     $("#kpiFeeNote").textContent = `原屋面 ${money(result.fee_base, 1)}`;
 
-    const doubleBetter = result.total_double_kwh <= result.total_base_kwh;
+    const doubleBetter = result.rate_double > 0;
     $("#recommendTitle").textContent = doubleBetter ? "优先采用双层通风屋面" : "建议复核通风参数";
     $("#recommendText").textContent = doubleBetter
-      ? `双层通风方案将仓顶峰值降低 ${fmt(result.red_double)}℃，日总耗电减少 ${fmt(result.total_base_kwh - result.total_double_kwh)} kWh。`
+      ? `双层通风方案将仓顶峰值降低 ${fmt(result.red_double)}℃，全系统日耗电减少 ${fmt(result.save_double)} kWh；嵌管方案进一步削峰，但需同时核对冷源耗电。`
       : "当前参数下双层方案未降低全系统耗电，建议优化通风量和运行时段。";
     $("#recommendRate").textContent = `${fmt(result.rate_double)}%`;
+    $("#recommendRate").className = result.rate_double >= 0 ? "value-positive" : "value-negative";
     $("#recommendPayback").textContent = economic.payback_double == null ? "无正收益" : `${fmt(economic.payback_double)} 年`;
 
     $("#thermalTable").innerHTML = [
@@ -161,10 +165,21 @@
       <td>${fmt(heat, 0)} kWh</td><td>${role}</td></tr>`).join("");
 
     $("#energyCards").innerHTML = [
-      ["原屋面日总耗电", result.total_base_kwh, "coral", "仓内制冷耗电"],
-      ["双层通风日总耗电", result.total_double_kwh, "blue", `风机 ${fmt(result.E_fan_kwh)} kWh`],
-      ["双层＋嵌管日总耗电", result.total_pipe_kwh, "green", `屋面设备 ${fmt(result.E_pipe_kwh)} kWh`],
+      ["原屋面日总耗电", result.total_base_kwh, "coral", `仓内制冷 ${fmt(result.E_cool_base_kwh)} kWh`],
+      ["双层通风日总耗电", result.total_double_kwh, "blue", `${energyRateLabel(result.rate_double)} · 风机 ${fmt(result.E_fan_kwh)} kWh`],
+      ["双层＋嵌管日总耗电", result.total_pipe_kwh, "green", `${energyRateLabel(result.rate_pipe)} · 屋面设备 ${fmt(result.E_pipe_kwh)} kWh`],
     ].map(([label, value, color, note]) => `<article class="kpi-card"><span class="kpi-icon ${color}">ϟ</span><div><small>${label}</small><strong>${fmt(value)} kWh</strong><p>${note}</p></div></article>`).join("");
+
+    const energyRows = [
+      ["原普通屋面", COLORS.base, result.E_cool_base_kwh, 0, 0, 0, result.total_base_kwh, null],
+      ["双层通风屋面", COLORS.double, result.E_cool_double_kwh, result.E_fan_kwh, 0, 0, result.total_double_kwh, result.rate_double],
+      ["双层＋嵌管", COLORS.pipe, result.E_cool_pipe_kwh, result.E_fan3_kwh, result.E_pump_kwh, result.E_pipe_source_kwh, result.total_pipe_kwh, result.rate_pipe],
+    ];
+    $("#energyBreakdownTable").innerHTML = energyRows.map(([name, color, storeCooling, fan, pump, pipeSource, total, rate]) => {
+      const rateClass = rate == null ? "" : (rate >= 0 ? "value-positive" : "value-negative");
+      const rateLabel = rate == null ? "基准" : energyRateLabel(rate);
+      return `<tr><td><span class="scheme-label" style="--scheme-color:${color}">${name}</span></td><td>${fmt(storeCooling)}</td><td>${fmt(fan)}</td><td>${fmt(pump)}</td><td>${fmt(pipeSource)}</td><td><strong>${fmt(total)}</strong></td><td class="${rateClass}">${rateLabel}</td></tr>`;
+    }).join("");
 
     const economicCardData = [
       ["双层通风总投资", money(economic.invest_double), "blue", `${fmt(params.cost_double_per)} 元/㎡`],
@@ -212,8 +227,8 @@
     ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
   }
 
-  function axes(ctx, width, height, yMin, yMax, suffix = "") {
-    const margin = { left: 48, right: 18, top: 24, bottom: 42 };
+  function axes(ctx, width, height, yMin, yMax, suffix = "", marginOverrides = {}) {
+    const margin = { left: 48, right: 18, top: 24, bottom: 42, ...marginOverrides };
     const plotW = width - margin.left - margin.right;
     const plotH = height - margin.top - margin.bottom;
     ctx.strokeStyle = COLORS.grid; ctx.fillStyle = COLORS.text; ctx.lineWidth = 1;
@@ -234,7 +249,7 @@
     const values = series.flatMap(item => item.values);
     let yMin = Math.floor(Math.min(...values) / 5) * 5 - 2;
     let yMax = Math.ceil(Math.max(...values) / 5) * 5 + 2;
-    const a = axes(ctx, width, height, yMin, yMax, "°");
+    const a = axes(ctx, width, height, yMin, yMax, "℃");
     ctx.textAlign = "center"; ctx.textBaseline = "top"; ctx.fillStyle = COLORS.text;
     labels.forEach((label, index) => {
       if (index % 3 === 0 || index === labels.length - 1) ctx.fillText(`${label}h`, a.margin.left + index / (labels.length - 1) * a.plotW, height - a.margin.bottom + 11);
@@ -286,22 +301,41 @@
     if (!canvas || canvas.offsetParent === null) return;
     const { ctx, width, height } = setupCanvas(canvas);
     const totals = categories.map((_, i) => stacks.reduce((sum, stack) => sum + stack.values[i], 0));
-    const a = axes(ctx, width, height, 0, Math.max(...totals) * 1.25, "");
+    const maxTotal = Math.max(1, ...totals);
+    const a = axes(ctx, width, height, 0, maxTotal * 1.25, "", { top: 50 });
     const group = a.plotW / categories.length;
     const barW = Math.min(68, group * .48);
     categories.forEach((category, index) => {
+      const x = a.margin.left + group * index + (group - barW) / 2;
       let bottom = a.y(0);
       stacks.forEach(stack => {
-        const h = a.plotH * stack.values[index] / (Math.max(...totals) * 1.25 || 1);
-        ctx.fillStyle = stack.color; ctx.fillRect(a.margin.left + group * index + (group - barW) / 2, bottom - h, barW, h);
+        const value = stack.values[index];
+        if (value <= 0) return;
+        const h = a.plotH * value / (maxTotal * 1.25);
+        ctx.fillStyle = stack.color;
+        ctx.fillRect(x, bottom - h, barW, h);
+        if (h >= 18) {
+          ctx.fillStyle = stack.color === COLORS.gold ? "#4b3715" : "#ffffff";
+          ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = 'bold 9px "Microsoft YaHei"';
+          ctx.fillText(fmt(value), x + barW / 2, bottom - h / 2);
+        }
         bottom -= h;
       });
-      ctx.textAlign = "center"; ctx.fillStyle = "#334a42"; ctx.font = 'bold 11px "Microsoft YaHei"'; ctx.fillText(`${fmt(totals[index])}`, a.margin.left + group * index + group / 2, bottom - 9);
-      ctx.font = '10px "Microsoft YaHei"'; ctx.fillStyle = COLORS.text; ctx.textBaseline = "top"; ctx.fillText(category.replace("屋面", ""), a.margin.left + group * index + group / 2, height - a.margin.bottom + 12);
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.fillStyle = "#334a42"; ctx.font = 'bold 11px "Microsoft YaHei"';
+      ctx.fillText(`${fmt(totals[index])} kWh`, x + barW / 2, bottom - 7);
+      ctx.font = '10px "Microsoft YaHei"'; ctx.fillStyle = COLORS.text; ctx.textBaseline = "top";
+      ctx.fillText(category.replace("屋面", ""), x + barW / 2, height - a.margin.bottom + 12);
     });
-    const legendY = 10; let legendX = a.margin.left;
+    ctx.font = '10px "Microsoft YaHei"';
+    let legendX = a.margin.left;
+    let legendY = 10;
     stacks.forEach(stack => {
-      ctx.fillStyle = stack.color; ctx.fillRect(legendX, legendY, 9, 9); ctx.fillStyle = COLORS.text; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(stack.label, legendX + 13, legendY + 5); legendX += ctx.measureText(stack.label).width + 34;
+      const labelWidth = ctx.measureText(stack.label).width + 34;
+      if (legendX + labelWidth > width - a.margin.right) { legendX = a.margin.left; legendY += 17; }
+      ctx.fillStyle = stack.color; ctx.fillRect(legendX, legendY, 9, 9);
+      ctx.fillStyle = COLORS.text; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(stack.label, legendX + 13, legendY + 5);
+      legendX += labelWidth;
     });
   }
 
@@ -310,6 +344,7 @@
       if (!result) return;
       if (page === "dashboard") {
         lineChart("overviewTempChart", [
+          { values: result.res.T_amb, color: "#9aa7a2", dash: [6, 5], width: 1.5 },
           { values: result.res.base.T3, color: COLORS.base },
           { values: result.res.double.T3, color: COLORS.double },
           { values: result.res.pipe.T3, color: COLORS.pipe },
@@ -326,10 +361,10 @@
       }
       if (page === "energy") {
         stackedBarChart("deviceEnergyChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [
-          { label: "仓内制冷", color: COLORS.purple, values: [result.E_cool_base_kwh, 0, 0] },
+          { label: "仓内制冷", color: COLORS.purple, values: [result.E_cool_base_kwh, result.E_cool_double_kwh, result.E_cool_pipe_kwh] },
           { label: "风机", color: COLORS.gold, values: [0, result.E_fan_kwh, result.E_fan3_kwh] },
           { label: "水泵", color: COLORS.blue, values: [0, 0, result.E_pump_kwh] },
-          { label: "冷源", color: COLORS.pipe, values: [0, 0, result.E_cool_kwh] },
+          { label: "嵌管冷源", color: COLORS.pipe, values: [0, 0, result.E_pipe_source_kwh] },
         ]);
         barChart("totalEnergyChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [result.total_base_kwh, result.total_double_kwh, result.total_pipe_kwh]);
       }
@@ -340,11 +375,26 @@
     });
   }
 
+  function setSidebarAnalysis(open) {
+    $("#analysisToggle").setAttribute("aria-expanded", String(open));
+    $("#analysisMenu").classList.toggle("open", open);
+  }
+
+  function setMobileAnalysis(open) {
+    $("#mobileAnalysisToggle").setAttribute("aria-expanded", String(open));
+    $("#mobileAnalysisMenu").hidden = !open;
+  }
+
   function navigate(page) {
     if (!PAGE_TITLES[page]) return;
     currentPage = page;
+    const isResultPage = RESULT_PAGES.has(page);
     $$(".page").forEach(el => el.classList.toggle("active", el.dataset.page === page));
     $$('[data-nav]').forEach(el => el.classList.toggle("active", el.dataset.nav === page));
+    $("#analysisToggle").classList.toggle("active", isResultPage);
+    $("#mobileAnalysisToggle").classList.toggle("active", isResultPage);
+    if (isResultPage) setSidebarAnalysis(true);
+    setMobileAnalysis(false);
     $("#pageTitle").textContent = PAGE_TITLES[page];
     window.scrollTo({ top: 0, behavior: "smooth" });
     renderPageCharts(page);
@@ -395,6 +445,12 @@
     $$('[data-nav]').forEach(el => el.addEventListener("click", event => {
       event.preventDefault(); navigate(el.dataset.nav);
     }));
+    $("#analysisToggle").addEventListener("click", () => {
+      setSidebarAnalysis($("#analysisToggle").getAttribute("aria-expanded") !== "true");
+    });
+    $("#mobileAnalysisToggle").addEventListener("click", () => {
+      setMobileAnalysis($("#mobileAnalysisToggle").getAttribute("aria-expanded") !== "true");
+    });
     $("#parameterForm").addEventListener("submit", event => {
       event.preventDefault();
       try {
@@ -445,5 +501,4 @@
 
   window.addEventListener("DOMContentLoaded", init);
 })();
-
 

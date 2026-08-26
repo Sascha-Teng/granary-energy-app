@@ -5,7 +5,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // 与“软件8.24/粮仓智改10.py”保持一致的默认参数。
+  // 默认参数沿用“软件8.24/粮仓智改10.py”；能耗分解参考“粮仓智改14.py”修正。
   const DEFAULT_PARAMS = Object.freeze({
     A: 1000.0,
     U_roof: 1.2,
@@ -191,20 +191,26 @@
     const QdoubleKwh = Qdouble / KWH;
     const QpipeKwh = Qpipe / KWH;
     const QremovedKwh = Qremoved / KWH;
-    const EcoolBaseKwh = QbaseKwh / COPref;
+    // 三种工况都需要将屋面传入仓内的热量由仓内制冷系统带走。
+    // 这里按“仓内制冷耗电 = 累计传入热量 / 仓内制冷COP”进行简化估算。
+    const EcoolBaseKwh = Math.max(0, QbaseKwh) / COPref;
+    const EcoolDoubleKwh = Math.max(0, QdoubleKwh) / COPref;
+    const EcoolPipeKwh = Math.max(0, QpipeKwh) / COPref;
     const EfanKwh = Efan / 1000.0;
     const Efan3Kwh = Efan3 / 1000.0;
     const EpumpKwh = Epump / 1000.0;
-    const EcoolKwh = QremovedKwh / COP;
+    const EpipeSourceKwh = QremovedKwh / COP;
     const EdoubleKwh = EfanKwh;
-    const EpipeKwh = Efan3Kwh + EpumpKwh + EcoolKwh;
+    const EpipeKwh = Efan3Kwh + EpumpKwh + EpipeSourceKwh;
     const totalBaseKwh = EcoolBaseKwh;
-    const totalDoubleKwh = EdoubleKwh + QdoubleKwh / COPref;
-    const totalPipeKwh = EpipeKwh + QpipeKwh / COPref;
-    const saveDouble = QbaseKwh - QdoubleKwh - EdoubleKwh;
-    const savePipe = QbaseKwh - QpipeKwh - EpipeKwh;
-    const rateDouble = QbaseKwh > 0 ? saveDouble / QbaseKwh * 100.0 : 0.0;
-    const ratePipe = QbaseKwh > 0 ? savePipe / QbaseKwh * 100.0 : 0.0;
+    const totalDoubleKwh = EcoolDoubleKwh + EdoubleKwh;
+    const totalPipeKwh = EcoolPipeKwh + EpipeKwh;
+
+    // 净节电量和节电率统一采用“全系统实际耗电”口径，避免热量与电量直接相减。
+    const saveDouble = totalBaseKwh - totalDoubleKwh;
+    const savePipe = totalBaseKwh - totalPipeKwh;
+    const rateDouble = totalBaseKwh > 0 ? saveDouble / totalBaseKwh * 100.0 : 0.0;
+    const ratePipe = totalBaseKwh > 0 ? savePipe / totalBaseKwh * 100.0 : 0.0;
     const feeBase = totalBaseKwh * p.price;
     const feeDouble = totalDoubleKwh * p.price;
     const feePipe = totalPipeKwh * p.price;
@@ -219,10 +225,14 @@
       Q_pipe_kwh: QpipeKwh,
       Q_removed_kwh: QremovedKwh,
       E_cool_base_kwh: EcoolBaseKwh,
+      E_cool_double_kwh: EcoolDoubleKwh,
+      E_cool_pipe_kwh: EcoolPipeKwh,
       E_fan_kwh: EfanKwh,
       E_fan3_kwh: Efan3Kwh,
       E_pump_kwh: EpumpKwh,
-      E_cool_kwh: EcoolKwh,
+      E_pipe_source_kwh: EpipeSourceKwh,
+      // 保留旧字段名，兼容此前导出的模型快照。
+      E_cool_kwh: EpipeSourceKwh,
       E_double_kwh: EdoubleKwh,
       E_pipe_kwh: EpipeKwh,
       total_base_kwh: totalBaseKwh,
@@ -280,27 +290,29 @@
   function makeConclusion(r, eco, params) {
     const p = { ...DEFAULT_PARAMS, ...params };
     const payback = value => value == null ? "无正向经济收益" : `${value.toFixed(1)} 年`;
+    const rateText = value => value >= 0
+      ? `节电率 ${value.toFixed(1)}%`
+      : `耗电增加 ${Math.abs(value).toFixed(1)}%`;
     const lines = [
       "【自动结论】",
-      `注：仓内制冷COP_ref=${p.COP_ref}；运行费用采用全系统口径（仓内制冷+屋面改造设备电费）。`,
+      `注：仓内制冷COP_ref=${p.COP_ref}；净节电量、节电率和运行费用均采用全系统口径（仓内制冷+屋面改造设备电耗）。`,
       `各工况包含仓内制冷的日总耗电：原屋面 ${r.total_base_kwh.toFixed(1)} kWh，双层通风屋面 ${r.total_double_kwh.toFixed(1)} kWh，双层+嵌管 ${r.total_pipe_kwh.toFixed(1)} kWh。`,
     ];
     if (r.rate_double > 0) {
-      lines.push(`① 普通高温天气优先采用双层通风屋面：仓顶内表面峰值温度由 ${r.peak_base.toFixed(1)}℃ 降至 ${r.peak_double.toFixed(1)}℃（降低 ${r.red_double.toFixed(1)}℃），24h累计传入热量由 ${r.Q_base_kwh.toFixed(0)} kWh 降至 ${r.Q_double_kwh.toFixed(0)} kWh，扣除风机耗电后净节能率约 ${r.rate_double.toFixed(1)}%。`);
+      lines.push(`① 普通高温天气优先采用双层通风屋面：仓顶内表面峰值温度由 ${r.peak_base.toFixed(1)}℃ 降至 ${r.peak_double.toFixed(1)}℃（降低 ${r.red_double.toFixed(1)}℃）；全系统日耗电减少 ${r.save_double.toFixed(1)} kWh，${rateText(r.rate_double)}。`);
     } else {
-      lines.push(`① 当前参数下双层通风屋面未取得净节能（${r.rate_double.toFixed(1)}%），建议优化通风量或空气层高度。`);
+      lines.push(`① 当前参数下双层通风屋面未取得全系统节电效果（${rateText(r.rate_double)}），建议优化通风量、空气层高度或运行时段。`);
     }
-    if (r.rate_pipe > r.rate_double) {
-      lines.push(`② 双层+嵌管进一步将峰值温度降至 ${r.peak_pipe.toFixed(1)}℃，嵌管累计运行 ${r.pipe_run_hours.toFixed(0)} h，净节能率约 ${r.rate_pipe.toFixed(1)}%。`);
-    } else if (r.rate_pipe > 0) {
-      lines.push(`② 嵌管在仓顶超过 ${p.T_setpoint.toFixed(0)}℃ 时短时运行 ${r.pipe_run_hours.toFixed(0)} h，将峰值温度降至 ${r.peak_pipe.toFixed(1)}℃；净节能率约 ${r.rate_pipe.toFixed(1)}%，适合作为极端高温削峰手段。`);
+    if (r.rate_pipe > 0) {
+      lines.push(`② 双层+嵌管将峰值温度进一步降至 ${r.peak_pipe.toFixed(1)}℃，嵌管累计运行 ${r.pipe_run_hours.toFixed(0)} h；全系统${rateText(r.rate_pipe)}，可作为高温削峰方案。`);
     } else {
-      lines.push(`② 当前参数下嵌管运行成本较高，净节能率为 ${r.rate_pipe.toFixed(1)}%，建议降低开启频率或提高冷源COP。`);
+      lines.push(`② 双层+嵌管将峰值温度进一步降至 ${r.peak_pipe.toFixed(1)}℃，但冷源、水泵和风机使全系统${rateText(r.rate_pipe)}。当前参数下应定位为极端高温削峰手段，不宜表述为节能优选方案。`);
     }
     lines.push("", "【经济性·静态投资回收期】");
     lines.push(`双层通风屋面：总投资 ${eco.invest_double.toFixed(0)} 元，年净收益 ${eco.year_net_double.toFixed(0)} 元，静态回收期 ${payback(eco.payback_double)}。`);
     lines.push(`双层+嵌管：总投资 ${eco.invest_pipe.toFixed(0)} 元，年净收益 ${eco.year_net_pipe.toFixed(0)} 元，静态回收期 ${payback(eco.payback_pipe)}。`);
     lines.push("注：静态回收期不计利率、通胀与设备残值；总投资=屋面面积×单位面积造价。");
+    lines.push("模型边界：仓内制冷耗电仅按屋面传入热量估算，尚未计入墙体、渗透、设备和粮食呼吸等完整冷负荷。");
     return lines.join("\n");
   }
 
@@ -314,4 +326,3 @@
     makeConclusion,
   };
 });
-

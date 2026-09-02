@@ -42,12 +42,14 @@
   const STEP = 3600.0;
 
   function zhengzhouWeather(hour) {
-    // 保留 Python 原版公式，不在 Web 迁移中改变模型口径。
+    // 与“粮仓智改15.py”保持一致：最低气温在3:00、最高气温在15:00。
+    // 气温峰值晚于太阳辐射峰值，体现室外环境的热惯性。
     const tmax = 38.0;
     const tmin = 26.0;
     const tvalley = 3.0;
     const temperature = (tmax + tmin) / 2.0
-      + (tmax - tmin) / 2.0 * Math.sin(Math.PI * (hour - tvalley) / 12.0);
+      + (tmax - tmin) / 2.0
+        * Math.sin(Math.PI * (hour - tvalley) / 12.0 - Math.PI / 2.0);
     let radiation = 0.0;
     if (hour >= 6.0 && hour <= 19.0) {
       radiation = 850.0 * Math.sin(Math.PI * (hour - 6.0) / 13.0);

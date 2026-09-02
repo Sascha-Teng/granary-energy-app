@@ -1,4 +1,4 @@
-const CACHE_NAME = "granary-smart-pwa-v2";
+const CACHE_NAME = "granary-smart-pwa-v3-weather-phase";
 const APP_SHELL = [
   "./",
   "./index.html",

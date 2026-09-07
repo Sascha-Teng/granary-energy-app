@@ -220,9 +220,9 @@
 
   function setupCanvas(canvas) {
     const rect = canvas.getBoundingClientRect();
-    const width = Math.max(300, Math.floor(rect.width || canvas.parentElement.clientWidth || 600));
-    const height = Math.max(250, Math.floor(rect.height || canvas.parentElement.clientHeight || 330));
-    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.max(300, Math.floor(Number(canvas.dataset.exportWidth) || rect.width || canvas.parentElement?.clientWidth || 600));
+    const height = Math.max(250, Math.floor(Number(canvas.dataset.exportHeight) || rect.height || canvas.parentElement?.clientHeight || 330));
+    const ratio = canvas.dataset.exportWidth ? 2 : Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = width * ratio;
     canvas.height = height * ratio;
     const ctx = canvas.getContext("2d");
@@ -258,8 +258,8 @@
   }
 
   function lineChart(id, series, labels) {
-    const canvas = document.getElementById(id);
-    if (!canvas || canvas.offsetParent === null) return;
+    const canvas = typeof id === "string" ? document.getElementById(id) : id;
+    if (!canvas || (typeof id === "string" && canvas.offsetParent === null)) return;
     const { ctx, width, height } = setupCanvas(canvas);
     const values = series.flatMap(item => item.values);
     let yMin = Math.floor(Math.min(...values) / 5) * 5 - 2;
@@ -325,8 +325,8 @@
   }
 
   function barChart(id, categories, values, options = {}) {
-    const canvas = document.getElementById(id);
-    if (!canvas || canvas.offsetParent === null) return;
+    const canvas = typeof id === "string" ? document.getElementById(id) : id;
+    if (!canvas || (typeof id === "string" && canvas.offsetParent === null)) return;
     const { ctx, width, height } = setupCanvas(canvas);
     const numeric = values.map(value => value == null ? 0 : value);
     const yMin = options.allowNegative ? Math.min(0, ...numeric) * 1.15 : 0;
@@ -356,8 +356,8 @@
   }
 
   function stackedBarChart(id, categories, stacks) {
-    const canvas = document.getElementById(id);
-    if (!canvas || canvas.offsetParent === null) return;
+    const canvas = typeof id === "string" ? document.getElementById(id) : id;
+    if (!canvas || (typeof id === "string" && canvas.offsetParent === null)) return;
     const { ctx, width, height } = setupCanvas(canvas);
     const totals = categories.map((_, i) => stacks.reduce((sum, stack) => sum + stack.values[i], 0));
     const maxTotal = Math.max(1, ...totals);
@@ -501,6 +501,37 @@
   }
 
   function bindEvents() {
+    const imageSelect = $("#chartImageSelect");
+    window.GranaryChartExport.ITEMS.forEach(item => {
+      const option = document.createElement("option");
+      option.value = item.id; option.textContent = item.title; imageSelect.appendChild(option);
+    });
+    const imageButtons = [$("#exportChartPngBtn"), $("#exportChartsZipBtn")];
+    async function exportImages(all) {
+      if (imageButtons[0].disabled) return;
+      // 固定本次已完成计算的快照，导出期间即使重新计算也不会混用不同参数。
+      const snapshot = JSON.parse(JSON.stringify({ params, result, economic }));
+      const selected = imageSelect.value;
+      imageButtons.forEach(button => { button.disabled = true; });
+      $("#chartExportStatus").textContent = "正在生成图表图片…";
+      try {
+        if (document.fonts?.ready) await document.fonts.ready;
+        const options = { snapshot, drawers: { lineChart, barChart, stackedBarChart }, colors: COLORS };
+        const blob = all ? await window.GranaryChartExport.exportZip(options, text => { $("#chartExportStatus").textContent = text; })
+          : await window.GranaryChartExport.exportPng(selected, options);
+        const title = window.GranaryChartExport.ITEMS.find(item => item.id === selected).title;
+        download(`${timestamp()}_${all ? "全部图表PNG.zip" : title + ".png"}`, all ? "application/zip" : "image/png", blob);
+        $("#chartExportStatus").textContent = all ? "已生成8张PNG并打包下载。" : "已生成所选PNG图片。";
+        showToast("图表已生成，请查看浏览器下载；手机也可在文件中查看");
+      } catch (error) {
+        $("#chartExportStatus").textContent = `导出失败：${error.message}。请重试或改为单张下载。`;
+        showToast("图片导出未完成，请查看导出区提示");
+      } finally {
+        imageButtons.forEach(button => { button.disabled = false; });
+      }
+    }
+    imageButtons[0].addEventListener("click", () => exportImages(false));
+    imageButtons[1].addEventListener("click", () => exportImages(true));
     $$('[data-nav]').forEach(el => el.addEventListener("click", event => {
       event.preventDefault(); navigate(el.dataset.nav);
     }));

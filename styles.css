@@ -185,6 +185,13 @@ tbody tr:hover { background: #f8fbfa; }
 .export-icon.csv { color: #16855f; background: #e3f6ee; }.export-icon.txt { color: #2f76d2; background: #e8f1ff; }.export-icon.json { color: #7758bb; background: #eee9fa; }.export-icon.print { color: #c57b15; background: #fff1d8; }
 .report-preview { margin-top: 18px; }.report-preview pre { margin: 12px 22px 22px; padding: 18px; overflow: auto; border-radius: 13px; color: #3b514a; background: #f5f9f7; font: 12px/1.85 "Microsoft YaHei", sans-serif; white-space: pre-wrap; }
 
+.chart-export-panel { margin-top: 18px; }
+.chart-export-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 18px 22px 8px; }
+.chart-export-controls label { display: grid; gap: 8px; flex: 1 1 260px; min-width: 0; font-size: 14px; }
+.chart-export-controls select { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbfdfc; color: var(--ink); font: inherit; }
+.chart-export-controls .btn { min-height: 44px; font-size: 14px; }
+.chart-export-controls button:disabled { opacity: .55; cursor: wait; }
+.chart-export-note { padding: 0 22px; margin: 8px 0 14px; color: var(--muted); font-size: 13px; line-height: 1.7; }
 .mobile-nav, .mobile-analysis-menu { display: none; }
 .mobile-analysis-menu[hidden] { display: none !important; }
 .toast { position: fixed; right: 24px; bottom: 24px; z-index: 100; max-width: 340px; padding: 12px 17px; border-radius: 11px; color: #fff; background: #153e35; box-shadow: 0 15px 35px rgba(0,0,0,.18); opacity: 0; transform: translateY(12px); pointer-events: none; transition: .22s; }

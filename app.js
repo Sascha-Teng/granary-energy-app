@@ -13,19 +13,21 @@
       ["U_roof", "原屋面传热系数", "W/m²·K", "1.2"],
       ["h_layer", "空气层高度", "m", "0.3"],
       ["Vdot", "通风量", "m³/h", "30000"],
-      ["T_water", "嵌管供水温度", "℃", "20"],
-      ["COP", "冷源 COP", "—", "3.5"],
     ],
     advanced: [
-      ["T_setpoint", "嵌管开启阈值", "℃", "37"],
-      ["price", "电价", "元/kWh", "0.6"],
+      ["T_water", "土壤源供水温度", "℃", "17"],
+      ["P_pump", "嵌管循环水泵功率", "W", "2200"],
+      ["T_air_set", "仓内空气控制温度", "℃", "23"],
+      ["T_setpoint", "嵌管开启阈值", "℃", "35"],
       ["COP_ref", "仓内制冷 COP", "—", "2.5"],
     ],
     economic: [
-      ["cost_double_per", "双层通风单位造价", "元/㎡", "85"],
-      ["cost_pipe_per", "双层＋嵌管单位造价", "元/㎡", "140"],
+      ["cost_double_per", "双层通风单位造价", "元/㎡", "100"],
+      ["cost_pipe_per", "双层＋土壤源嵌管整套造价", "元/㎡", "220"],
       ["hot_days_year", "年高温运行天数", "天", "90"],
-      ["maintain_rate", "年度维护费率", "%", "2"],
+      ["price", "电价", "元/kWh", "0.65"],
+      ["maintain_rate_double", "双层改造系统年度维护费率", "%", "1.5"],
+      ["maintain_rate_pipe", "双层＋土壤源嵌管改造系统年度维护费率", "%", "1.0"],
     ],
   };
 
@@ -95,7 +97,7 @@
         const value = Number(input.value);
         error.textContent = "";
         input.removeAttribute("aria-invalid");
-        if (!Number.isFinite(value)) {
+        if (input.value.trim() === "" || !Number.isFinite(value)) {
           valid = false;
           error.textContent = "请输入有效数字";
           input.setAttribute("aria-invalid", "true");
@@ -108,11 +110,16 @@
       ["A", next.A > 0, "屋面面积必须大于0"],
       ["U_roof", next.U_roof > 0, "传热系数必须大于0"],
       ["Vdot", next.Vdot >= 0, "通风量不能为负"],
-      ["COP", next.COP > 0, "COP必须大于0"],
+      ["P_pump", next.P_pump >= 0, "水泵功率不能为负"],
+      ["T_air_set", next.T_air_set >= 10 && next.T_air_set <= 30, "仓内控制温度范围10～30℃"],
+      ["price", next.price >= 0, "电价不能为负"],
+      ["cost_double_per", next.cost_double_per >= 0, "造价不能为负"],
+      ["cost_pipe_per", next.cost_pipe_per >= 0, "造价不能为负"],
       ["COP_ref", next.COP_ref > 0, "COP必须大于0"],
       ["h_layer", next.h_layer >= 0.05, "空气层高度建议不小于0.05m"],
-      ["hot_days_year", next.hot_days_year >= 0, "运行天数不能为负"],
-      ["maintain_rate", next.maintain_rate >= 0, "维护费率不能为负"],
+      ["hot_days_year", next.hot_days_year >= 0 && next.hot_days_year <= 365, "年运行天数范围0～365"],
+      ["maintain_rate_double", next.maintain_rate_double >= 0, "维护费率不能为负"],
+      ["maintain_rate_pipe", next.maintain_rate_pipe >= 0, "维护费率不能为负"],
     ];
     checks.forEach(([key, ok, message]) => {
       if (!ok) {
@@ -128,9 +135,16 @@
   }
 
   function calculate(nextParams = params, announce = false) {
-    params = { ...M.DEFAULT_PARAMS, ...nextParams };
-    result = M.simulate(params);
-    economic = M.evaluateEconomic(params, result);
+    const next = { ...M.DEFAULT_PARAMS, ...nextParams };
+    const nextResult = M.simulate(next);
+    const nextEconomic = M.evaluateEconomic(next, nextResult);
+    if (Object.values(nextResult).some(v => typeof v === "number" && !Number.isFinite(v)) ||
+        Object.values(nextEconomic).some(v => typeof v === "number" && !Number.isFinite(v))) {
+      throw new Error("参数导致计算超出有效范围，请调整后重试");
+    }
+    params = next;
+    result = nextResult;
+    economic = nextEconomic;
     conclusion = M.makeConclusion(result, economic, params);
     renderData();
     renderPageCharts(currentPage);
@@ -145,11 +159,12 @@
     $("#kpiEnergyNote").textContent = `原屋面 ${fmt(result.total_base_kwh)} kWh`;
     $("#kpiFee").textContent = money(result.fee_double, 1);
     $("#kpiFeeNote").textContent = `原屋面 ${money(result.fee_base, 1)}`;
+    $("#currentConditions").textContent = `三方案仓内空气均为 ${fmt(params.T_air_set)}℃ · 土壤源供水 ${fmt(params.T_water)}℃ · 仓内制冷 COP ${fmt(params.COP_ref)}`;
 
     const doubleBetter = result.rate_double > 0;
     $("#recommendTitle").textContent = doubleBetter ? "优先采用双层通风屋面" : "建议复核通风参数";
     $("#recommendText").textContent = doubleBetter
-      ? `双层通风方案将仓顶峰值降低 ${fmt(result.red_double)}℃，全系统日耗电减少 ${fmt(result.save_double)} kWh；嵌管方案进一步削峰，但需同时核对冷源耗电。`
+      ? `双层通风方案将仓顶峰值降低 ${fmt(result.red_double)}℃，日耗电减少 ${fmt(result.save_double)} kWh；嵌管组合${result.total_pipe_kwh < result.total_double_kwh ? "进一步节电，仍需核对新增投资与维护费。" : "未进一步节电，需结合仓顶削峰效果判断用途。"}`
       : "当前参数下双层方案未降低全系统耗电，建议优化通风量和运行时段。";
     $("#recommendRate").textContent = `${fmt(result.rate_double)}%`;
     $("#recommendRate").className = result.rate_double >= 0 ? "value-positive" : "value-negative";
@@ -157,8 +172,8 @@
 
     $("#thermalTable").innerHTML = [
       ["原普通屋面", COLORS.base, result.peak_base, 0, result.Q_base_kwh, "对照基准"],
-      ["双层通风屋面", COLORS.double, result.peak_double, result.red_double, result.Q_double_kwh, "日常被动隔热"],
-      ["双层＋嵌管", COLORS.pipe, result.peak_pipe, result.red_pipe, result.Q_pipe_kwh, "极端高温削峰"],
+      ["双层通风屋面", COLORS.double, result.peak_double, result.red_double, result.Q_double_kwh, "隔热与定时通风"],
+      ["双层＋土壤源嵌管", COLORS.pipe, result.peak_pipe, result.red_pipe, result.Q_pipe_kwh, "阈值控制辅助削峰"],
     ].map(([name, color, peak, reduction, heat, role]) => `
       <tr><td><span class="scheme-label" style="--scheme-color:${color}">${name}</span></td>
       <td>${fmt(peak)} ℃</td><td class="${reduction > 0 ? "value-positive" : ""}">${reduction > 0 ? `-${fmt(reduction)} ℃` : "—"}</td>
@@ -199,7 +214,7 @@
       ["静态回收期", economic.payback_double == null ? "无正向收益" : `${fmt(economic.payback_double)} 年`, economic.payback_pipe == null ? "无正向收益" : `${fmt(economic.payback_pipe)} 年`],
     ];
     $("#economicTable").innerHTML = ecoRows.map((row, index) => `<tr><td>${row[0]}</td><td class="${index >= 5 ? (economic.year_net_double > 0 ? "value-positive" : "value-negative") : ""}">${row[1]}</td><td class="${index >= 5 ? (economic.year_net_pipe > 0 ? "value-positive" : "value-negative") : ""}">${row[2]}</td></tr>`).join("");
-    $("#economicSubtitle").textContent = `屋面面积 ${fmt(params.A, 0)}㎡ · 年高温运行 ${fmt(params.hot_days_year, 0)}天 · 维护费率 ${fmt(params.maintain_rate)}%`;
+    $("#economicSubtitle").textContent = `屋面 ${fmt(params.A, 0)}㎡ · 仓内空气 ${fmt(params.T_air_set)}℃ · 年高温 ${fmt(params.hot_days_year, 0)}天 · 双层维护 ${fmt(params.maintain_rate_double)}% / 双层＋土壤源嵌管维护 ${fmt(params.maintain_rate_pipe)}%（各按整套改造投资）`;
     $("#conclusionPreview").textContent = conclusion;
   }
 
@@ -357,16 +372,16 @@
           { values: result.res.double.T3, color: COLORS.double },
           { values: result.res.pipe.T3, color: COLORS.pipe },
         ], result.res.hours);
-        barChart("heatChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [result.Q_base_kwh, result.Q_double_kwh, result.Q_pipe_kwh], { suffix: "", digits: 0 });
+        barChart("heatChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [result.Q_base_kwh, result.Q_double_kwh, result.Q_pipe_kwh], { suffix: "", digits: 0, allowNegative: true });
       }
       if (page === "energy") {
         stackedBarChart("deviceEnergyChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [
           { label: "仓内制冷", color: COLORS.purple, values: [result.E_cool_base_kwh, result.E_cool_double_kwh, result.E_cool_pipe_kwh] },
           { label: "风机", color: COLORS.gold, values: [0, result.E_fan_kwh, result.E_fan3_kwh] },
           { label: "水泵", color: COLORS.blue, values: [0, 0, result.E_pump_kwh] },
-          { label: "嵌管冷源", color: COLORS.pipe, values: [0, 0, result.E_pipe_source_kwh] },
         ]);
         barChart("totalEnergyChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [result.total_base_kwh, result.total_double_kwh, result.total_pipe_kwh]);
+        barChart("savingRateChart", ["双层通风屋面", "双层＋嵌管"], [result.rate_double, result.rate_pipe], { colors: [COLORS.double, COLORS.pipe], suffix: "%", allowNegative: true });
       }
       if (page === "economics") {
         barChart("feeChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [result.fee_base, result.fee_double, result.fee_pipe], { suffix: "元" });
@@ -490,7 +505,8 @@
   }
 
   function registerServiceWorker() {
-    if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    // 预览时不缓存，避免审核期间看到旧结果；以后经审核部署HTTPS后仍支持PWA。
+    if ("serviceWorker" in navigator && location.protocol.startsWith("http") && !["localhost", "127.0.0.1"].includes(location.hostname)) {
       navigator.serviceWorker.register("service-worker.js").catch(() => {});
     }
   }

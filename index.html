@@ -12,9 +12,9 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css">
-  <script src="model.js" defer></script>
-  <script src="app.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=23.1">
+  <script src="model.js?v=23.1" defer></script>
+  <script src="app.js?v=23.1" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -49,11 +49,11 @@
     <div class="workspace">
       <header class="topbar">
         <div>
-          <p class="eyebrow">河南省节能减排大赛 · 展示版</p>
+          <p class="eyebrow">河南省节能减排大赛 · 23版展示</p>
           <h1 id="pageTitle">项目总览</h1>
         </div>
         <div class="top-actions">
-          <span class="model-badge"><i></i>计算模型在线</span>
+          <span class="model-badge"><i></i>浏览器本地计算</span>
           <button class="btn ghost" id="installBtn" hidden>安装应用</button>
           <button class="btn secondary" id="resetTopBtn">恢复默认</button>
           <button class="btn primary" id="calculateTopBtn">重新计算</button>
@@ -64,9 +64,9 @@
         <section class="page active" id="page-dashboard" data-page="dashboard">
           <div class="hero-card">
             <div class="hero-copy">
-              <span class="pill">全系统能耗评估 · v1.2 PWA</span>
+              <span class="pill">同仓温对比 · 土壤源直接供冷</span>
               <h2>平房仓屋面节能方案<br><em>一站式虚拟评估</em></h2>
-              <p>基于简化动态热阻—热容模型，对原屋面、双层通风屋面和双层＋嵌管三种工况开展24小时传热、能耗与经济性对比分析。</p>
+              <p>基于粮仓智改23版简化模型，在相同仓内空气控制温度下，对原屋面、双层通风屋面和双层＋土壤源嵌管开展24小时传热、能耗与经济性对比。</p>
               <div class="hero-actions">
                 <button class="btn light" data-nav="parameters">调整屋面参数</button>
                 <button class="btn outline-light" data-nav="thermal">查看结果分析</button>
@@ -84,6 +84,7 @@
             </div>
           </div>
 
+          <p class="conditions-line" id="currentConditions" aria-live="polite"></p>
           <div class="kpi-grid" id="kpiGrid">
             <article class="kpi-card"><span class="kpi-icon coral">℃</span><div><small>原屋面峰值温度</small><strong id="kpiPeak">--</strong><p id="kpiPeakNote">等待计算</p></div></article>
             <article class="kpi-card"><span class="kpi-icon blue">↓</span><div><small>双层通风降温</small><strong id="kpiReduction">--</strong><p>相对原屋面峰值</p></div></article>
@@ -113,7 +114,7 @@
           <div class="page-intro"><div><span class="section-kicker">MODEL INPUT</span><h2>屋面参数设置</h2><p>调整屋面、运行控制和经济性参数后点击“开始计算”，所有结果会同步更新。</p></div><div class="intro-badge">当前地区：郑州</div></div>
           <form id="parameterForm" novalidate>
             <div class="parameter-layout">
-              <article class="panel form-card"><div class="panel-head"><div><span class="card-index">01</span><h3>基础热工参数</h3></div><span class="subtle">6项主要输入</span></div><div class="field-grid" id="basicFields"></div></article>
+              <article class="panel form-card"><div class="panel-head"><div><span class="card-index">01</span><h3>基础热工参数</h3></div><span class="subtle">4项主要输入</span></div><div class="field-grid" id="basicFields"></div></article>
               <article class="panel form-card"><div class="panel-head"><div><span class="card-index">02</span><h3>运行控制参数</h3></div><span class="subtle">影响耗电与启停</span></div><div class="field-grid" id="advancedFields"></div></article>
               <article class="panel form-card wide"><div class="panel-head"><div><span class="card-index">03</span><h3>经济性参数</h3></div><span class="subtle">造价按整套工程含安装估算</span></div><div class="field-grid four" id="economicFields"></div></article>
             </div>
@@ -124,21 +125,22 @@
         <section class="page" id="page-thermal" data-page="thermal">
           <div class="page-intro"><div><span class="section-kicker">THERMAL ANALYSIS</span><h2>热工性能分析</h2><p>对比三种工况的仓顶温度和24小时累计传入热量。</p></div><span class="intro-badge">1小时计算步长</span></div>
           <div class="grid half">
-            <article class="panel chart-panel"><div class="panel-head"><div><h3>仓顶内表面温度</h3><p>灰色虚线表示室外气温</p></div><div class="legend"><i class="dashed"></i>室外气温<i class="red"></i>原屋面<i class="blue"></i>双层<i class="green"></i>嵌管</div></div><div class="chart-wrap"><canvas id="temperatureChart"></canvas></div></article>
+            <article class="panel chart-panel"><div class="panel-head"><div><h3>仓顶等效节点温度</h3><p>模拟值，不代表粮温；灰色虚线表示室外气温</p></div><div class="legend"><i class="dashed"></i>室外气温<i class="red"></i>原屋面<i class="blue"></i>双层<i class="green"></i>嵌管</div></div><div class="chart-wrap"><canvas id="temperatureChart"></canvas></div></article>
             <article class="panel chart-panel"><div class="panel-head"><div><h3>累计传入热量</h3><p>24h累计值，单位 kWh</p></div></div><div class="chart-wrap"><canvas id="heatChart"></canvas></div></article>
           </div>
           <article class="panel table-panel"><div class="panel-head"><div><h3>热工指标汇总</h3><p>峰值温度、降温幅度及传入热量</p></div></div><div class="table-scroll"><table><thead><tr><th>工况</th><th>峰值温度</th><th>相对原屋面降温</th><th>累计传入热量</th><th>方案定位</th></tr></thead><tbody id="thermalTable"></tbody></table></div></article>
         </section>
 
         <section class="page" id="page-energy" data-page="energy">
-          <div class="page-intro"><div><span class="section-kicker">ENERGY ANALYSIS</span><h2>能耗与运行费用</h2><p>对三种工况的仓内制冷、风机、水泵和嵌管冷源耗电进行全系统对比。</p></div><span class="intro-badge">全系统实际耗电口径</span></div>
+          <div class="page-intro"><div><span class="section-kicker">ENERGY ANALYSIS</span><h2>能耗与运行费用</h2><p>对三种工况的仓内制冷、风机与水泵耗电进行对比；土壤源嵌管不计压缩机耗电。</p></div><span class="intro-badge">全系统模拟耗电口径</span></div>
           <div class="grid half">
             <article class="panel chart-panel"><div class="panel-head"><div><h3>全系统耗电构成</h3><p>三种工况均计入仓内制冷耗电</p></div></div><div class="chart-wrap"><canvas id="deviceEnergyChart"></canvas></div></article>
             <article class="panel chart-panel"><div class="panel-head"><div><h3>各工况日总耗电</h3><p>仓内制冷＋屋面设备</p></div></div><div class="chart-wrap"><canvas id="totalEnergyChart"></canvas></div></article>
           </div>
+          <article class="panel chart-panel saving-panel"><div class="panel-head"><div><h3>相对原屋面净节能率</h3><p>正值表示节电，负值表示耗电增加</p></div></div><div class="chart-wrap"><canvas id="savingRateChart" role="img" aria-label="净节能率对比，支持显示负值"></canvas></div></article>
           <div class="kpi-grid compact" id="energyCards"></div>
-          <article class="panel table-panel energy-breakdown"><div class="panel-head"><div><h3>耗电构成明细</h3><p>分项数据用于核对柱状图，单位均为 kWh/日</p></div></div><div class="table-scroll"><table><thead><tr><th>工况</th><th>仓内制冷</th><th>风机</th><th>水泵</th><th>嵌管冷源</th><th>日总耗电</th><th>相对原屋面</th></tr></thead><tbody id="energyBreakdownTable"></tbody></table></div></article>
-          <article class="panel note-panel"><span class="note-icon">i</span><div><h4>计算口径说明</h4><p>三种工况的仓内制冷耗电均按“屋面累计传入热量÷仓内制冷COP”估算；日总耗电为仓内制冷与屋面设备之和；节电率按各方案日总耗电相对原屋面计算。当前简化模型尚未计入墙体、渗透、设备和粮食呼吸等完整冷负荷。</p></div></article>
+          <article class="panel table-panel energy-breakdown"><div class="panel-head"><div><h3>耗电构成明细</h3><p>分项数据用于核对柱状图，单位均为 kWh/日；嵌管侧压缩机一栏为0，循环水泵已单列</p></div></div><div class="table-scroll"><table><thead><tr><th>工况</th><th>仓内制冷</th><th>风机</th><th>水泵</th><th>嵌管侧压缩机</th><th>日总耗电</th><th>相对原屋面</th></tr></thead><tbody id="energyBreakdownTable"></tbody></table></div></article>
+          <article class="panel note-panel"><span class="note-icon">i</span><div><h4>计算口径说明</h4><p>三种方案均24小时维持相同仓内空气设定温度。逐时制冷负荷=max(0，屋面传热＋墙体传热＋粮堆表层换热)，累加后除以仓内制冷COP；再加风机、水泵电耗得到日总耗电。嵌管采用假定定温土壤源，不代表自然冷源零能耗。未完整考虑渗透、呼吸热及整仓初始降温过程。</p></div></article>
         </section>
 
         <section class="page" id="page-economics" data-page="economics">
@@ -159,7 +161,7 @@
             <button class="export-card" id="exportJsonBtn"><span class="export-icon json">JSON</span><div><h3>完整模型快照</h3><p>保存全部输入参数和结构化计算结果</p></div><b>下载</b></button>
             <button class="export-card" id="printBtn"><span class="export-icon print">PDF</span><div><h3>打印当前报告</h3><p>调用浏览器打印，可另存为PDF提交材料</p></div><b>打印</b></button>
           </div>
-          <article class="panel report-preview"><div class="panel-head"><div><h3>自动结论预览</h3><p>随模型参数实时更新</p></div><button class="btn ghost small" id="copyConclusionBtn">复制结论</button></div><pre id="conclusionPreview"></pre></article>
+          <article class="panel report-preview"><div class="panel-head"><div><h3>自动结论预览</h3><p>随模型参数实时更新；包含计算假设和适用边界</p></div><button class="btn ghost small" id="copyConclusionBtn">复制结论</button></div><pre id="conclusionPreview"></pre></article>
         </section>
       </main>
     </div>

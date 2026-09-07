@@ -151,8 +151,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid rgba(31, 157, 114
 .subtle { color: var(--muted); font-size: 10px; }
 .field-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding: 20px 22px 0; }
 .field-grid.four { grid-template-columns: repeat(4, 1fr); }
-.field label { display: flex; justify-content: space-between; margin-bottom: 7px; color: #40544d; font-size: 11px; font-weight: 700; }
-.field label span { color: #93a09b; font-weight: 400; }
+.field label { display: flex; flex-wrap: wrap; gap: 3px 8px; justify-content: space-between; margin-bottom: 7px; color: #40544d; font-size: 11px; font-weight: 700; }
+.field label span { color: #93a09b; font-weight: 400; overflow-wrap: anywhere; }
+.conditions-line { margin: 18px 0; color: var(--brand); font-size: 14px; line-height: 1.6; }
+.saving-panel { margin-bottom: 18px; }
 .input-wrap { position: relative; }
 .input-wrap input { width: 100%; height: 43px; padding: 0 54px 0 12px; border: 1px solid #d6e3de; border-radius: 10px; color: var(--ink); background: #fbfdfc; transition: .18s; }
 .input-wrap input:hover { border-color: #a9c6bb; }

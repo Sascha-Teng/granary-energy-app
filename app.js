@@ -278,6 +278,50 @@
       });
       ctx.strokeStyle = item.color; ctx.lineWidth = item.width || 2.5; ctx.setLineDash(item.dash || []); ctx.stroke(); ctx.setLineDash([]);
     });
+
+    // 标签读取本次曲线真实最大值，不修改模型或插入人工峰值。
+    const placed = [];
+    const peaks = [];
+    series.filter(item => item.peakLabel).forEach(item => {
+      const peak = Math.max(...item.values);
+      const index = item.values.indexOf(peak);
+      const px = a.margin.left + index / (item.values.length - 1) * a.plotW;
+      const py = a.y(peak);
+      const text = `${item.peakLabel}峰值 ${fmt(peak)}℃`;
+      ctx.font = 'bold 12px "Microsoft YaHei", sans-serif';
+      const boxW = ctx.measureText(text).width + 16;
+      const boxH = 24;
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const overlap = box => placed.some(other => box.x < other.x + other.w + 6 &&
+        box.x + box.w + 6 > other.x && box.y < other.y + other.h + 6 && box.y + box.h + 6 > other.y);
+      let box;
+      // 优先贴近峰点，重叠时向上下错开；窄屏标签限制在绘图区内。
+      for (const dy of [-34, 12, -64, 42, -94, 72, -124, 102]) {
+        const candidate = {
+          x: clamp(px - boxW / 2, a.margin.left + 2, width - a.margin.right - boxW - 2),
+          y: clamp(py + dy, a.margin.top + 2, height - a.margin.bottom - boxH - 2),
+          w: boxW, h: boxH,
+        };
+        box = candidate;
+        if (!overlap(candidate)) break;
+      }
+      placed.push(box);
+      ctx.strokeStyle = item.color; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(px, py);
+      ctx.lineTo(clamp(px, box.x + 5, box.x + box.w - 5), py > box.y + box.h ? box.y + box.h : box.y);
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fillStyle = item.color; ctx.fill();
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
+      roundedRect(ctx, box.x, box.y, box.w, box.h, 6);
+      ctx.fillStyle = "rgba(255,255,255,0.96)"; ctx.fill();
+      ctx.strokeStyle = item.color; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = item.color; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.fillText(text, box.x + 8, box.y + box.h / 2);
+      peaks.push(text);
+    });
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute("aria-label", `仓顶温度趋势图；${peaks.join("；")}`);
   }
 
   function barChart(id, categories, values, options = {}) {
@@ -360,17 +404,17 @@
       if (page === "dashboard") {
         lineChart("overviewTempChart", [
           { values: result.res.T_amb, color: "#9aa7a2", dash: [6, 5], width: 1.5 },
-          { values: result.res.base.T3, color: COLORS.base },
-          { values: result.res.double.T3, color: COLORS.double },
-          { values: result.res.pipe.T3, color: COLORS.pipe },
+          { values: result.res.base.T3, color: COLORS.base, peakLabel: "原屋面" },
+          { values: result.res.double.T3, color: COLORS.double, peakLabel: "双层" },
+          { values: result.res.pipe.T3, color: COLORS.pipe, peakLabel: "嵌管" },
         ], result.res.hours);
       }
       if (page === "thermal") {
         lineChart("temperatureChart", [
           { values: result.res.T_amb, color: "#9aa7a2", dash: [6, 5], width: 1.5 },
-          { values: result.res.base.T3, color: COLORS.base },
-          { values: result.res.double.T3, color: COLORS.double },
-          { values: result.res.pipe.T3, color: COLORS.pipe },
+          { values: result.res.base.T3, color: COLORS.base, peakLabel: "原屋面" },
+          { values: result.res.double.T3, color: COLORS.double, peakLabel: "双层" },
+          { values: result.res.pipe.T3, color: COLORS.pipe, peakLabel: "嵌管" },
         ], result.res.hours);
         barChart("heatChart", ["原屋面", "双层通风屋面", "双层＋嵌管"], [result.Q_base_kwh, result.Q_double_kwh, result.Q_pipe_kwh], { suffix: "", digits: 0, allowNegative: true });
       }

@@ -12,10 +12,11 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="styles.css?v=23.3">
-  <script src="model.js?v=23.3" defer></script>
-  <script src="chart-export.js?v=23.3" defer></script>
-  <script src="app.js?v=23.3" defer></script>
+  <link rel="stylesheet" href="styles.css?v=23.4">
+  <script src="model.js?v=23.4" defer></script>
+  <script src="chart-export.js?v=23.4" defer></script>
+  <script src="print-report.js?v=23.4" defer></script>
+  <script src="app.js?v=23.4" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -160,7 +161,7 @@
             <button class="export-card" id="exportCsvBtn"><span class="export-icon csv">CSV</span><div><h3>逐时计算数据</h3><p>导出24小时温度、辐射、传热及嵌管冷量</p></div><b>下载</b></button>
             <button class="export-card" id="exportReportBtn"><span class="export-icon txt">TXT</span><div><h3>自动分析报告</h3><p>导出关键指标、经济性结果与自动结论</p></div><b>下载</b></button>
             <button class="export-card" id="exportJsonBtn"><span class="export-icon json">JSON</span><div><h3>完整模型快照</h3><p>保存全部输入参数和结构化计算结果</p></div><b>下载</b></button>
-            <button class="export-card" id="printBtn"><span class="export-icon print">PDF</span><div><h3>打印当前报告</h3><p>调用浏览器打印，可另存为PDF提交材料</p></div><b>打印</b></button>
+            <button class="export-card" id="printBtn"><span class="export-icon print">PDF</span><div><h3>打印当前报告</h3><p id="printReportStatus" aria-live="polite">新窗口生成完整参数、结果与8张图表，可打印或另存为PDF</p></div><b>打印</b></button>
           </div>
           <article class="panel chart-export-panel">
             <div class="panel-head"><div><h3>图表图片导出</h3><p>高清白底PNG，包含标题、图例及本次计算参数，可用于PPT和申报书</p></div></div>

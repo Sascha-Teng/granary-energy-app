@@ -559,7 +559,27 @@
     $("#exportCsvBtn").addEventListener("click", exportCsv);
     $("#exportReportBtn").addEventListener("click", exportReport);
     $("#exportJsonBtn").addEventListener("click", exportJson);
-    $("#printBtn").addEventListener("click", () => window.print());
+    $("#printBtn").addEventListener("click", async () => {
+      const button = $("#printBtn");
+      if (button.disabled) return;
+      button.disabled = true;
+      $("#printReportStatus").textContent = "正在准备报告与图表，请稍候…";
+      try {
+        const snapshot = JSON.parse(JSON.stringify({ params, result, economic, conclusion }));
+        await window.GranaryPrintReport.open(
+          { snapshot, drawers: { lineChart, barChart, stackedBarChart }, colors: COLORS },
+          Object.values(FIELD_GROUPS).flat(),
+          message => { $("#printReportStatus").textContent = message; }
+        );
+        $("#printReportStatus").textContent = "完整报告已生成，请在报告窗口打印或保存PDF；可再次点击生成。";
+        showToast("完整报告已生成，可在报告窗口打印或保存为PDF");
+      } catch (error) {
+        $("#printReportStatus").textContent = error.message + "；未执行打印，请重试。";
+        showToast(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
     $("#copyConclusionBtn").addEventListener("click", async () => {
       try { await navigator.clipboard.writeText(conclusion); showToast("自动结论已复制"); }
       catch (_) { showToast("浏览器未允许复制，请手动选择文本"); }

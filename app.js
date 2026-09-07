@@ -4,7 +4,7 @@
   const M = window.GranaryModel;
   const COLORS = {
     base: "#dc685c", double: "#2f76d2", pipe: "#1f9d72",
-    purple: "#7758bb", gold: "#d99b32", grid: "#e4ece9", text: "#6f807a",
+    purple: "#7758bb", gold: "#d99b32", blue: "#2f76d2", grid: "#e4ece9", text: "#6f807a",
   };
 
   const FIELD_GROUPS = {

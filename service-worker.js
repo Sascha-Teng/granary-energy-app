@@ -1,8 +1,8 @@
 // 缓存仅限本应用；版本化资源避免旧模型与新界面混用。
 const CACHE_PREFIX = "granary-energy-app-v23-";
-const CACHE_NAME = CACHE_PREFIX + "20260907-4";
-const APP_SHELL = ["./", "./index.html", "./styles.css?v=23.4", "./model.js?v=23.4",
-  "./chart-export.js?v=23.4", "./print-report.js?v=23.4", "./app.js?v=23.4", "./manifest.webmanifest", "./icons/icon.svg",
+const CACHE_NAME = CACHE_PREFIX + "20260907-5";
+const APP_SHELL = ["./", "./index.html", "./styles.css?v=23.5", "./model.js?v=23.5",
+  "./chart-export.js?v=23.5", "./print-report.js?v=23.5", "./app.js?v=23.5", "./manifest.webmanifest", "./icons/icon.svg",
   "./icons/icon-192.png", "./icons/icon-512.png"];
 const APP_URLS = new Set(APP_SHELL.map(path => new URL(path, self.registration.scope).href));
 
